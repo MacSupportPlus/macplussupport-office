@@ -1,0 +1,51 @@
+Race test output — Neon Postgres (AWS us-east-1, pooled), 2026-10-25
+
+$ npm run test:race -- 300
+300 concurrent creates (locked counter) in 24805 ms (pool size 5)
+  succeeded:  300
+  failed:     0
+  unique:     300
+  duplicates: 0
+  gaps:       0
+  range:      INV-2026-0001 … INV-2026-0300
+PASS: every number used exactly once
+
+$ npm run test:race -- 50 --naive   # expected to fail: the counter-example
+50 concurrent creates (NAIVE max+1) in 1348 ms (pool size 5)
+  succeeded:  16
+  failed:     34
+  unique:     16
+  duplicates: 0
+  gaps:       34
+  range:      INV-2026-0001 … INV-2026-0050
+FAIL
+[
+  {
+    status: 'rejected',
+    reason: error: duplicate key value violates unique constraint "invoices_business_id_number_key"
+        at node_modules/pg/lib/client.js:694:17
+        at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+        at async <anonymous> (scripts/race-test.ts:20:5)
+        at async withTransaction (src/lib/db.ts:20:20)
+        at async Promise.allSettled (index 1)
+        at async main (scripts/race-test.ts:44:19) {
+      length: 292,
+      severity: 'ERROR',
+      code: '23505',
+      detail: 'Key (business_id, number)=(8037cc39-0efd-49a2-8654-57dcfe0f9034, INV-2026-0002) already exists.',
+      hint: undefined,
+      position: undefined,
+      internalPosition: undefined,
+      internalQuery: undefined,
+      where: undefined,
+      schema: 'public',
+      table: 'invoices',
+      column: undefined,
+      dataType: undefined,
+      constraint: 'invoices_business_id_number_key',
+      file: 'nbtinsert.c',
+      line: '667',
+      routine: '_bt_check_unique'
+    }
+  },
+  ... 2 more sample rejections omitted (same duplicate-key error, 23505); 34 of 50 failed in total ...
