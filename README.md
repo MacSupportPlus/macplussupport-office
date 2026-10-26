@@ -6,9 +6,9 @@ Invoices, payments and reminders for small businesses: a portfolio project by [J
 
 ![Dashboard](docs/screenshots/dashboard.png)
 
-| Sign in | New invoice |
-| --- | --- |
-| ![Sign in with Microsoft](docs/screenshots/sign-in.png) | ![New invoice form](docs/screenshots/new-invoice.png) |
+| Sign in | New invoice | Invoice |
+| --- | --- | --- |
+| ![Sign in with Microsoft](docs/screenshots/sign-in.png) | ![New invoice form](docs/screenshots/new-invoice.png) | ![Invoice INV-2026-0003](docs/screenshots/invoice.png) |
 
 ## What it does
 
