@@ -2,9 +2,13 @@
 
 Invoices, payments and reminders for small businesses: a portfolio project by [Jason McElvain](https://jasonmcelvain.netlify.app), built in public one weekend at a time.
 
-**Live demo:** https://YOUR-PROJECT.vercel.app (sign in with any Microsoft account; you get a private sandbox business with fictional clients)
+**Live demo:** https://macplussupport-office.vercel.app (sign in with any Microsoft account; you get a private sandbox business with fictional clients)
 
 ![Dashboard](docs/screenshots/dashboard.png)
+
+| Sign in | New invoice |
+| --- | --- |
+| ![Sign in with Microsoft](docs/screenshots/sign-in.png) | ![New invoice form](docs/screenshots/new-invoice.png) |
 
 ## What it does
 
@@ -27,17 +31,21 @@ The common approach, `select max(seq) + 1`, fails under load: two requests read 
 
 ```
 $ npm run test:race -- 50 --naive
-50 concurrent creates (NAIVE max+1)
-  succeeded:  6
-  failed:     44     ← duplicate key errors
+50 concurrent creates (NAIVE max+1) in 1348 ms (pool size 5)
+  succeeded:  16
+  failed:     34     ← duplicate key errors
+FAIL
 
 $ npm run test:race -- 300
-300 concurrent creates (locked counter) in 779 ms
+300 concurrent creates (locked counter) in 24805 ms (pool size 5)
   succeeded:  300
   duplicates: 0
   gaps:       0
+  range:      INV-2026-0001 … INV-2026-0300
 PASS: every number used exactly once
 ```
+
+Real output from a run against Neon Postgres (AWS us-east-1, pooled connection): [docs/race-test-output.txt](docs/race-test-output.txt). The locked run is slower because requests deliberately wait their turn for the counter row; correctness, not speed, is the point.
 
 The fix is one statement ([src/lib/invoices.ts](src/lib/invoices.ts)): an upsert on a per-business, per-year counter row, run in the same transaction as the invoice insert. Postgres locks that row until the transaction commits, so requests take turns, and a failed insert rolls the counter back, so there are no gaps. A `unique (business_id, number)` constraint backs it up.
 
@@ -74,6 +82,23 @@ npm run dev                     # http://localhost:3000
 3. Redirect URI: platform **Web**, `http://localhost:3000/api/auth/callback`. Add your Vercel URL + `/api/auth/callback` later.
 4. **Certificates & secrets** → new client secret → copy the **Value** into `AZURE_CLIENT_SECRET`.
 5. **API permissions**: Microsoft Graph → Delegated → `User.Read` (already there by default). No admin consent needed.
+
+> **Personal Microsoft account with no directory?** Signing in to Entra fails with "Selected user account does not exist in tenant 'Microsoft Services'". Personal accounts need their own tenant to register apps: create a free Azure account with the same login, which gives you a "Default Directory", then register the app there.
+
+## Deployment
+
+Hosted on Vercel and connected to this repo, so every push to `main` deploys to production.
+
+1. Add the same variables as `.env.example` under Vercel → Project → Settings → Environment Variables, with `APP_URL` set to the production URL. Generate fresh `SESSION_SECRET` and `TOKEN_CACHE_KEY` values for production.
+2. In Entra, add a second Web redirect URI: `https://<your-project>.vercel.app/api/auth/callback`.
+3. Always use the same host you set in `APP_URL` (for example `localhost`, not `127.0.0.1`), or the sign-in cookie won't match and you'll see "Sign-in expired".
+
+## Demo script
+
+1. Open the live demo and sign in with a Microsoft account.
+2. Create two invoices: they're numbered `INV-<year>-0001` and `0002`.
+3. Sign in from a second browser profile with a **different** Microsoft account: it gets its own empty demo business, and its first invoice is also `0001`.
+4. Show `npm run test:race -- 50 --naive` failing and `npm run test:race -- 300` passing.
 
 ## Security notes
 
